@@ -1,5 +1,6 @@
 import api_keys
 import config
+from config import MAX_DISCUSSION_ROUNDS
 import atexit
 from models import (
     gpt4o_chat,

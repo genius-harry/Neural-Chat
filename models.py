@@ -22,8 +22,9 @@ from api_keys import (
     get_deepseek_api_key,
     get_anthropic_api_key,
 )
+from config import RESPONSE_LENGTH
 
-def get_default_system_prompt(model_name=None):
+def get_default_system_prompt(model_name=None, response_length=RESPONSE_LENGTH):
     prompt = (
         "You are a discussion model participating in a multi-model dialogue. "
         f"Your identity is {model_name}. " if model_name else "You are a discussion model. "
@@ -34,7 +35,8 @@ def get_default_system_prompt(model_name=None):
         "2. Be critical and analytical - it's perfectly fine to disagree with other models.\n"
         "3. When responding to other models, refer to them by name (e.g., 'GPT-4o mentioned...' or 'I disagree with Gemini because...').\n"
         "4. Focus on quality insights rather than length.\n"
-        "5. Always respond to previous models' contributions if they exist. Build upon or challenge their ideas."
+        "5. Always respond to previous models' contributions if they exist. Build upon or challenge their ideas.\n"
+        f"6. Each response should be about {response_length} words long."
     )
     return prompt
 
@@ -374,10 +376,14 @@ def claude_chat(discussion_topic, context_messages=None, system_prompt=None):
         print(f"Claude API error: {e}. Returning fallback response.")
         return {"model": MODEL_NAME, "contribution": "I encountered an error when processing your request.", "vote": False}
 
-def summarize_discussion(discussion_context):
+def summarize_discussion(discussion_context, discussion_topic=None):
     """
     Summarize the discussion context into a final answer.
     The function takes a list of discussion contributions and returns a summary string.
+    
+    Args:
+        discussion_context: List of discussion contributions
+        discussion_topic: Original topic provided by the user (optional)
     """
     # Convert dictionary items to strings before joining
     formatted_context = []
@@ -393,9 +399,16 @@ def summarize_discussion(discussion_context):
             formatted_context.append(item)
     
     combined_context = "\n".join(formatted_context)
+    
+    # Add the original discussion topic to the summary prompt if provided
+    topic_context = f"Original discussion topic: {discussion_topic}\n\n" if discussion_topic else ""
+    
     summary_prompt = (
-        "You are a summarization assistant. Given the following discussion transcript, "
-        "please provide a concise final summary:\n\n" + combined_context
+        "You are a summarization assistant. "
+        f"{topic_context}"
+        "Given the following discussion transcript, "
+        "please provide a concise final summary that directly addresses the original topic:\n\n" + combined_context
     )
+    
     summary_result = gpt4o_chat(summary_prompt, context_messages=[])
     return summary_result.get("contribution", "No summary available.")

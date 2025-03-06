@@ -105,6 +105,10 @@ You can adjust the maximum number of discussion rounds in `config.py`:
 MAX_DISCUSSION_ROUNDS = 7  # Change this value as needed
 ```
 
+The behavior of Neural-Chat can be customized through the `config.py` file:
+
+- `RESPONSE_LENGTH`: Controls the target length of model responses in the discussion (in words). Default is 100 words.
+
 ## 🧠 Models
 
 - **GPT-4o**: OpenAI's advanced model
@@ -113,6 +117,20 @@ MAX_DISCUSSION_ROUNDS = 7  # Change this value as needed
 - **DeepSeek**: DeepSeek AI's LLM
 - **Claude**: Anthropic's AI assistant
 
+Neural-Chat currently supports the following models:
+
+- GPT-4o (OpenAI)
+- Gemini 2.0 Flash (Google)
+- Grok (xAI)
+- DeepSeek
+- Claude (Anthropic)
+
+Each model participates in the discussion and provides contributions based on the configured length and other parameters.
+
 ## 📄 License
 
 This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+
+## API Keys
+
+To use Neural-Chat, you'll need to provide API keys for the models you want to include in the discussion. These should be configured in `api_keys.py`.
