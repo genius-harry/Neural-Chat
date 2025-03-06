@@ -2,6 +2,7 @@ import api_keys
 import config
 from config import MAX_DISCUSSION_ROUNDS
 import atexit
+import random
 from models import (
     gpt4o_chat,
     gemini_chat,
@@ -39,21 +40,28 @@ def cleanup():
 # Register the cleanup function to run at exit
 atexit.register(cleanup)
 
+def randomize_model_order(model_functions):
+    """
+    Randomizes the order of model functions for each discussion round.
+    
+    Args:
+        model_functions: List of model chat functions
+        
+    Returns:
+        Randomized list of model functions
+    """
+    # Create a copy of the original list to avoid modifying it
+    shuffled_models = model_functions.copy()
+    # Shuffle the list in place
+    random.shuffle(shuffled_models)
+    return shuffled_models
+
 def main():
     # Initialize an empty list to store the discussion context.
     discussion_context = []
 
     # Ask the user for the initial topic/message/question.
     topic = input("Enter the discussion topic/message/question: ")
-
-    # List of model functions in the order of discussion.
-    model_functions = [
-        gpt4o_chat,
-        gemini_chat,
-        grok_chat,
-        deepseek_chat,
-        claude_chat
-    ]
 
     current_round = 0
     continue_discussion = True
@@ -62,8 +70,17 @@ def main():
         print(f"\n--- Discussion Round {current_round + 1} ---")
         round_votes = []
 
+        # Get a new randomized order for this round
+        current_round_models = randomize_model_order([
+            gpt4o_chat,
+            gemini_chat,
+            grok_chat,
+            deepseek_chat,
+            claude_chat
+        ])
+
         # Iterate through each model.
-        for i, model_fn in enumerate(model_functions):
+        for i, model_fn in enumerate(current_round_models):
             # Call the model with the topic and the full discussion context
             is_first_turn = current_round == 0 and i == 0
             

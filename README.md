@@ -107,7 +107,7 @@ MAX_DISCUSSION_ROUNDS = 7  # Change this value as needed
 
 The behavior of Neural-Chat can be customized through the `config.py` file:
 
-- `RESPONSE_LENGTH`: Controls the target length of model responses in the discussion (in words). Default is 100 words.
+- `RESPONSE_LENGTH`: Controls the target length of model responses in the discussion (in words). Default is 50 words.
 
 ## 🧠 Models
 

@@ -25,6 +25,8 @@ from api_keys import (
 from config import RESPONSE_LENGTH
 
 def get_default_system_prompt(model_name=None, response_length=RESPONSE_LENGTH):
+    participant_models = ["GPT-4o", "Gemini", "DeepSeek", "Grok", "Claude"]
+    
     prompt = (
         "You are a discussion model participating in a multi-model dialogue. "
         f"Your identity is {model_name}. " if model_name else "You are a discussion model. "
@@ -36,7 +38,14 @@ def get_default_system_prompt(model_name=None, response_length=RESPONSE_LENGTH):
         "3. When responding to other models, refer to them by name (e.g., 'GPT-4o mentioned...' or 'I disagree with Gemini because...').\n"
         "4. Focus on quality insights rather than length.\n"
         "5. Always respond to previous models' contributions if they exist. Build upon or challenge their ideas.\n"
-        f"6. Each response should be about {response_length} words long."
+        f"6. RESPONSE LENGTH: Target around {response_length} words. Your response MUST NOT exceed {int(response_length * 1.3)} words. Shorter, more focused responses are preferred.\n"
+        "7. Unless you are the first to respond, you MUST refer to at least one previous response from another model.\n"
+        "8. You can ask questions to other models to encourage further discussion.\n"
+        "9. You can challenge or critique other models' reasoning if you find flaws in their arguments.\n"
+        "10. Do NOT focus too much on repeating what has already been discussed. Instead, add new insights, information, or perspectives.\n"
+        "    Brief summaries when agreeing with or critiquing others are acceptable, but avoid lengthy rehashing of previous points.\n"
+        "    Focus on moving the discussion forward with new contributions rather than just echoing what's already been said.\n\n"
+        f"You are participating in a dialogue with the following models(including yourself({model_name})): {', '.join(participant_models)}."
     )
     return prompt
 
@@ -57,7 +66,13 @@ def gpt4o_chat(discussion_topic, context_messages=None):
         vote: bool
 
     # Build message list with identity-aware system prompt
-    messages = [{"role": "system", "content": get_default_system_prompt(MODEL_NAME)}]
+    system_prompt = get_default_system_prompt(MODEL_NAME) + """
+    IMPORTANT REMINDER: You MUST refer to at least one previous model by their exact name (e.g., "Gemini mentioned..." or "I disagree with Claude's point about..."). 
+    Use conversational language as if you are directly speaking to the other models in a group chat. 
+    If there are no previous responses, you can start the discussion with your own perspective.
+    """
+    
+    messages = [{"role": "system", "content": system_prompt}]
     
     # Format context messages correctly with model identities
     if context_messages:
@@ -175,9 +190,12 @@ def grok_chat(discussion_topic, context_messages=None):
        - true = more discussion is needed
        - false = discussion can conclude
     
+    CRITICAL INSTRUCTION: You MUST refer to other models by their exact names (e.g., "GPT-4o", "Claude", "Gemini", etc.) 
+    when responding to their points. Use conversational language as if you're talking directly to them in a chat.
+    
     Example response:
     {
-        "contribution": "Here are my thoughts on the topic...",
+        "contribution": "I see what GPT-4o is saying about X, but I think Claude's perspective on Y makes more sense because...",
         "vote": true
     }
     """
@@ -258,11 +276,20 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
     """
     from pydantic import BaseModel
     from openai import OpenAI
+    import re
     
     MODEL_NAME = "DeepSeek"
 
-    # Make the instructions more explicit about boolean values
-    system_prompt = get_default_system_prompt(MODEL_NAME) + "\nRespond in JSON format with 'contribution' and 'vote' fields. The 'vote' field MUST be a boolean value (true or false, not 'Yes' or 'No')."
+    # Make the instructions more explicit about boolean values and addressing other models
+    system_prompt = get_default_system_prompt(MODEL_NAME) + """
+    Respond in JSON format with 'contribution' and 'vote' fields. The 'vote' field MUST be a boolean value (true or false, not 'Yes' or 'No').
+    
+    CRITICAL INSTRUCTION: You MUST refer to at least one previous model by their exact name (GPT-4o, Gemini, Grok, or Claude) when responding. 
+    Use conversational language as if you're directly talking to them in a group chat.
+    
+    Example:
+    {"contribution": "I agree with what GPT-4o said about X, but Claude's point about Y makes me think...", "vote": true}
+    """
 
     messages = [{"role": "system", "content": system_prompt}]
     
@@ -299,6 +326,13 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
         
         content = completion.choices[0].message.content
         try:
+            # Check if the content is inside JSON code block
+            if "```json" in content:
+                # Extract JSON from code block
+                json_match = re.search(r'```json\s*(.*?)\s*```', content, re.DOTALL)
+                if json_match:
+                    content = json_match.group(1)
+            
             parsed_output = json.loads(content)
             
             # Convert string votes to boolean values
@@ -313,8 +347,12 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
             
             return {"model": MODEL_NAME, "contribution": parsed_output.get("contribution", ""), "vote": vote}
         except json.JSONDecodeError:
-            # If not valid JSON, extract using string manipulation
-            return {"model": MODEL_NAME, "contribution": content, "vote": False}
+            # If not valid JSON, check for vote:true or vote:false in the text
+            if '"vote": true' in content or '"vote":true' in content:
+                vote = True
+            else:
+                vote = False
+            return {"model": MODEL_NAME, "contribution": content, "vote": vote}
     except Exception as e:
         print(f"DeepSeek API error: {e}. Returning fallback response.")
         return {"model": MODEL_NAME, "contribution": "I encountered an error when processing your request.", "vote": False}
@@ -330,7 +368,11 @@ def claude_chat(discussion_topic, context_messages=None, system_prompt=None):
     
     MODEL_NAME = "Claude"
 
-    default_system = get_default_system_prompt(MODEL_NAME)
+    default_system = get_default_system_prompt(MODEL_NAME) + """
+    CRITICAL INSTRUCTION: You MUST refer to at least one previous model by their exact name (GPT-4o, Gemini, Grok, or DeepSeek) when responding.
+    Use conversational language as if you're directly talking to them in a group chat. For example: "I see GPT-4o's point about X, but I think..."
+    """
+    
     system = system_prompt if system_prompt is not None else default_system
 
     # Format context messages correctly
