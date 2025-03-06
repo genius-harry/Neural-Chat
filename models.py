@@ -259,8 +259,8 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
     
     MODEL_NAME = "DeepSeek"
 
-    # Ensure "json" word appears in both system prompt and content for DeepSeek
-    system_prompt = get_default_system_prompt(MODEL_NAME) + "\nRespond in JSON format with 'contribution' and 'vote' fields."
+    # Make the instructions more explicit about boolean values
+    system_prompt = get_default_system_prompt(MODEL_NAME) + "\nRespond in JSON format with 'contribution' and 'vote' fields. The 'vote' field MUST be a boolean value (true or false, not 'Yes' or 'No')."
 
     messages = [{"role": "system", "content": system_prompt}]
     
@@ -279,8 +279,8 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
                 formatted_context.append({"role": "assistant", "content": msg})
         messages.extend(formatted_context)
         
-    # Explicitly include "json" in the user message
-    messages.append({"role": "user", "content": f"Discuss the following topic and provide your answer in JSON format: {discussion_topic}"})
+    # Explicitly mention boolean values in the user message
+    messages.append({"role": "user", "content": f"Discuss the following topic and provide your answer in JSON format. The 'vote' field MUST be a boolean value (true or false, not 'Yes' or 'No'): {discussion_topic}"})
 
     client = OpenAI(
         api_key=get_deepseek_api_key(),
@@ -298,7 +298,18 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
         content = completion.choices[0].message.content
         try:
             parsed_output = json.loads(content)
-            return {"model": MODEL_NAME, "contribution": parsed_output.get("contribution", ""), "vote": parsed_output.get("vote", False)}
+            
+            # Convert string votes to boolean values
+            vote = parsed_output.get("vote", False)
+            if isinstance(vote, str):
+                # Convert string votes like "Yes", "No", "True", "False" to boolean values
+                normalized_vote = vote.lower()
+                if normalized_vote in ["true", "yes", "y", "1"]:
+                    vote = True
+                else:
+                    vote = False
+            
+            return {"model": MODEL_NAME, "contribution": parsed_output.get("contribution", ""), "vote": vote}
         except json.JSONDecodeError:
             # If not valid JSON, extract using string manipulation
             return {"model": MODEL_NAME, "contribution": content, "vote": False}
