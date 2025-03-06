@@ -8,7 +8,7 @@
 
 *An AI discussion system enabling collaborative conversations between multiple large language models*
 
-[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Models](#-models) • [Configuration](#-configuration) • [Troubleshooting](#-troubleshooting)
+[Features](#-features) • [Installation](#-installation) • [Quick Start](#-quick-start) • [Example Conversation](#-example-conversation) • [Models](#-models) • [Configuration](#-configuration) • [Troubleshooting](#-troubleshooting)
 
 </div>
 
@@ -85,6 +85,14 @@ You will be prompted to enter a discussion topic. The system will then:
 3. Tally votes to determine whether to continue the discussion
 4. Repeat for multiple rounds (if voted to continue)
 5. Generate a final summary of the conversation
+
+## 💬 Example Conversation
+
+Below is an example conversation between the models discussing a simple question: "How many 'r' are there in the word 'Strawberry'?"
+
+<details>
+<summary>Click to expand the full conversation</summary>
+```
 
 ## 🛠️ How It Works
 

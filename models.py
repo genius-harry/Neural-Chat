@@ -42,7 +42,7 @@ def get_default_system_prompt(model_name=None, response_length=RESPONSE_LENGTH):
         "7. Unless you are the first to respond, you MUST refer to at least one previous response from another model.\n"
         "8. You can ask questions to other models to encourage further discussion.\n"
         "9. You can challenge or critique other models' reasoning if you find flaws in their arguments.\n"
-        "10. Do NOT focus too much on repeating what has already been discussed. Instead, add new insights, information, or perspectives.\n"
+        "10. Do NOT focus too much on repeating what has already been discussed. Instead, add new insights, information,  or perspectives, or dig deeper into the topic.\n"
         "    Brief summaries when agreeing with or critiquing others are acceptable, but avoid lengthy rehashing of previous points.\n"
         "    Focus on moving the discussion forward with new contributions rather than just echoing what's already been said.\n\n"
         f"You are participating in a dialogue with the following models(including yourself({model_name})): {', '.join(participant_models)}."
@@ -70,6 +70,9 @@ def gpt4o_chat(discussion_topic, context_messages=None):
     IMPORTANT REMINDER: You MUST refer to at least one previous model by their exact name (e.g., "Gemini mentioned..." or "I disagree with Claude's point about..."). 
     Use conversational language as if you are directly speaking to the other models in a group chat. 
     If there are no previous responses, you can start the discussion with your own perspective.
+    
+    IMPORTANT: Pay attention to which previous messages were YOUR OWN contributions. When you see messages marked as 
+    "YOUR PREVIOUS RESPONSE", be sure to maintain consistency with your earlier statements and build upon them.
     """
     
     messages = [{"role": "system", "content": system_prompt}]
@@ -82,11 +85,17 @@ def gpt4o_chat(discussion_topic, context_messages=None):
                 # Keep existing formatted messages
                 formatted_context.append(msg)
             elif isinstance(msg, dict) and 'model' in msg and 'content' in msg:
-                # Handle messages with model identity
-                formatted_context.append({
-                    "role": "assistant", 
-                    "content": f"{msg['model']}: {msg['content']}"
-                })
+                # Handle messages with model identity and mark the model's own previous responses
+                if msg['model'] == MODEL_NAME:
+                    formatted_context.append({
+                        "role": "assistant", 
+                        "content": f"YOUR PREVIOUS RESPONSE: {msg['content']}"
+                    })
+                else:
+                    formatted_context.append({
+                        "role": "assistant", 
+                        "content": f"{msg['model']}: {msg['content']}"
+                    })
             elif isinstance(msg, str):
                 # Convert plain string messages
                 formatted_context.append({"role": "assistant", "content": msg})
@@ -129,12 +138,17 @@ def gemini_chat(discussion_topic, context_messages=None):
         prompt = (
             f"You are {MODEL_NAME} participating in a multi-model dialogue. "
             "Provide your contribution to the discussion and a vote "
-            "(true if more discussion is needed, false otherwise) in JSON format with keys 'contribution' and 'vote'."
+            "(true if more discussion is needed, false otherwise) in JSON format with keys 'contribution' and 'vote'.\n\n"
+            "IMPORTANT: When you see messages marked as 'YOUR PREVIOUS RESPONSE', "
+            "these are statements you made earlier in the conversation. Be consistent with your earlier points and build upon them."
         )
         if context_messages:
             for msg in context_messages:
                 if isinstance(msg, dict) and 'model' in msg and 'content' in msg:
-                    prompt += f"\n{msg['model']}: {msg['content']}"
+                    if msg['model'] == MODEL_NAME:
+                        prompt += f"\nYOUR PREVIOUS RESPONSE: {msg['content']}"
+                    else:
+                        prompt += f"\n{msg['model']}: {msg['content']}"
                 elif isinstance(msg, dict) and 'role' in msg and 'content' in msg:
                     prompt += f"\n{msg.get('role').capitalize()}: {msg.get('content')}"
                 elif isinstance(msg, str):
@@ -193,6 +207,9 @@ def grok_chat(discussion_topic, context_messages=None):
     CRITICAL INSTRUCTION: You MUST refer to other models by their exact names (e.g., "GPT-4o", "Claude", "Gemini", etc.) 
     when responding to their points. Use conversational language as if you're talking directly to them in a chat.
     
+    IMPORTANT: Pay attention to which previous messages were YOUR OWN contributions. When you see messages marked as 
+    "YOUR PREVIOUS RESPONSE", be sure to maintain consistency with your earlier statements and build upon them.
+    
     Example response:
     {
         "contribution": "I see what GPT-4o is saying about X, but I think Claude's perspective on Y makes more sense because...",
@@ -209,11 +226,17 @@ def grok_chat(discussion_topic, context_messages=None):
             if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
                 formatted_context.append(msg)
             elif isinstance(msg, dict) and 'model' in msg and 'content' in msg:
-                # Include model identity
-                formatted_context.append({
-                    "role": "assistant", 
-                    "content": f"{msg['model']}: {msg['content']}"
-                })
+                # Include model identity and mark the model's own previous responses
+                if msg['model'] == MODEL_NAME:
+                    formatted_context.append({
+                        "role": "assistant", 
+                        "content": f"YOUR PREVIOUS RESPONSE: {msg['content']}"
+                    })
+                else:
+                    formatted_context.append({
+                        "role": "assistant", 
+                        "content": f"{msg['model']}: {msg['content']}"
+                    })
             elif isinstance(msg, str):
                 formatted_context.append({"role": "assistant", "content": msg})
         messages.extend(formatted_context)
@@ -287,6 +310,9 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
     CRITICAL INSTRUCTION: You MUST refer to at least one previous model by their exact name (GPT-4o, Gemini, Grok, or Claude) when responding. 
     Use conversational language as if you're directly talking to them in a group chat.
     
+    IMPORTANT: Pay attention to which previous messages were YOUR OWN contributions. When you see messages marked as 
+    "YOUR PREVIOUS RESPONSE", be sure to maintain consistency with your earlier statements and build upon them.
+    
     Example:
     {"contribution": "I agree with what GPT-4o said about X, but Claude's point about Y makes me think...", "vote": true}
     """
@@ -300,10 +326,17 @@ def deepseek_chat(discussion_topic, context_messages=None, stream=False):
             if isinstance(msg, dict) and 'role' in msg and 'content' in msg:
                 formatted_context.append(msg)
             elif isinstance(msg, dict) and 'model' in msg and 'content' in msg:
-                formatted_context.append({
-                    "role": "assistant", 
-                    "content": f"{msg['model']}: {msg['content']}"
-                })
+                # Include model identity and mark the model's own previous responses
+                if msg['model'] == MODEL_NAME:
+                    formatted_context.append({
+                        "role": "assistant", 
+                        "content": f"YOUR PREVIOUS RESPONSE: {msg['content']}"
+                    })
+                else:
+                    formatted_context.append({
+                        "role": "assistant", 
+                        "content": f"{msg['model']}: {msg['content']}"
+                    })
             elif isinstance(msg, str):
                 formatted_context.append({"role": "assistant", "content": msg})
         messages.extend(formatted_context)
@@ -371,6 +404,9 @@ def claude_chat(discussion_topic, context_messages=None, system_prompt=None):
     default_system = get_default_system_prompt(MODEL_NAME) + """
     CRITICAL INSTRUCTION: You MUST refer to at least one previous model by their exact name (GPT-4o, Gemini, Grok, or DeepSeek) when responding.
     Use conversational language as if you're directly talking to them in a group chat. For example: "I see GPT-4o's point about X, but I think..."
+    
+    IMPORTANT: Pay attention to which previous messages were YOUR OWN contributions. When you see messages marked as 
+    "YOUR PREVIOUS RESPONSE", be sure to maintain consistency with your earlier statements and build upon them.
     """
     
     system = system_prompt if system_prompt is not None else default_system
@@ -385,11 +421,17 @@ def claude_chat(discussion_topic, context_messages=None, system_prompt=None):
                 else:
                     formatted_messages.append({"role": "assistant", "content": msg['content']})
             elif isinstance(msg, dict) and 'model' in msg and 'content' in msg:
-                # Include model identity
-                formatted_messages.append({
-                    "role": "assistant", 
-                    "content": f"{msg['model']}: {msg['content']}"
-                })
+                # Include model identity and mark the model's own previous responses
+                if msg['model'] == MODEL_NAME:
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": f"YOUR PREVIOUS RESPONSE: {msg['content']}"
+                    })
+                else:
+                    formatted_messages.append({
+                        "role": "assistant", 
+                        "content": f"{msg['model']}: {msg['content']}"
+                    })
             elif isinstance(msg, str):
                 formatted_messages.append({"role": "assistant", "content": msg})
     
